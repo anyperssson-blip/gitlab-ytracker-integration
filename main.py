@@ -58,11 +58,17 @@ async def gitlab_webhook(
 
     mr_attrs = body.get("object_attributes", {})
     action = mr_attrs.get("action")
+    is_draft = mr_attrs.get("draft", False) or mr_attrs.get("work_in_progress", False)
 
-    # 3. Определяем нужный тег в зависимости от действия
+    # 3. Определяем нужный тег в зависимости от действия с учетом драфтов
     tag_to_add = None
-    if action == "open":
+    if action == "open" and not is_draft:
         tag_to_add = TAG_OPENED
+    elif action == "update":
+        changes = body.get("changes", {})
+        draft_change = changes.get("draft") or changes.get("work_in_progress")
+        if draft_change and draft_change.get("previous") is True and draft_change.get("current") is False:
+            tag_to_add = TAG_OPENED
     elif action == "merge":
         tag_to_add = TAG_MERGED
     else:
